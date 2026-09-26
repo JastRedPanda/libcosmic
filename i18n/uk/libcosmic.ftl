@@ -36,3 +36,9 @@ thu = Чт
 fri = Пт
 sat = Cб
 sun = Нд
+
+# Text context menu
+cut = Вирізати
+copy = Копіювати
+paste = Вставити
+select-all = Виділити все

@@ -39,3 +39,9 @@ saturday = Saturday
 sat = Sat
 sunday = Sunday
 sun = Sun
+
+# Text context menu
+cut = Cut
+copy = Copy
+paste = Paste
+select-all = Select All
