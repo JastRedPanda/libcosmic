@@ -71,11 +71,14 @@ pub mod menu_column;
 mod menu_inner;
 mod menu_tree;
 pub use menu_tree::{
-    Entry, IconSlot, MenuItem as Item, MenuTree as Tree, menu_button, menu_items as items,
-    menu_root as root, nav_context,
+    ARROW_SIZE, DIVIDER_HEIGHT, Entry, ICON_GAP, ICON_SIZE, ITEM_HEIGHT, ITEM_PADDING, IconSlot,
+    MenuItem as Item, MenuTree as Tree, divider, icon_column, menu_button, menu_items as items,
+    menu_root as root, nav_context, submenu_arrow,
 };
 
 pub use crate::style::menu_bar::{Appearance, StyleSheet};
 pub(crate) use menu_bar::{menu_roots_children, menu_roots_diff};
-pub use menu_inner::{CloseCondition, ItemHeight, ItemWidth, PathHighlight};
+pub use menu_inner::{
+    CloseCondition, ItemHeight, ItemWidth, MENU_PADDING as PADDING, PathHighlight,
+};
 pub(crate) use menu_inner::{Direction, Menu, init_root_menu};

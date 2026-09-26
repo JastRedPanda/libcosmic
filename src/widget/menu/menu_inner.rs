@@ -226,6 +226,9 @@ impl Aod {
 /// When the bounds of a menu exceed the viewport,
 /// only items inside the viewport will be displayed,
 /// when scrolling happens, this should be updated
+/// Inner padding between the menu border and its items, as in the Windows 11 menu
+pub const MENU_PADDING: f32 = 4.0;
+
 #[derive(Debug, Clone, Copy)]
 pub(super) struct MenuSlice {
     pub(super) start_index: usize,
@@ -349,7 +352,7 @@ impl MenuState {
                         e.as_widget_mut()
                             .layout(&mut tree[mt.index], renderer, &limits)
                     })
-                    .move_to(Point::new(0.0, position + self.scroll_offset))
+                    .move_to(Point::new(MENU_PADDING, position + self.scroll_offset))
             })
             .collect::<Vec<_>>();
 
@@ -372,7 +375,7 @@ impl MenuState {
         let parent_offset = children_bounds.position() - Point::ORIGIN;
         let node = menu_tree.item.layout(tree, renderer, &limits);
         node.move_to(Point::new(
-            parent_offset.x,
+            parent_offset.x + MENU_PADDING,
             parent_offset.y + position + self.scroll_offset,
         ))
     }
@@ -400,8 +403,11 @@ impl MenuState {
         // index range
         let (start_index, end_index) = match item_height {
             ItemHeight::Uniform(u) => {
-                let start_index = (lower_bound_rel / f32::from(u)).floor() as usize;
-                let end_index = ((upper_bound_rel / f32::from(u)).floor() as usize).min(max_index);
+                let start_index =
+                    ((lower_bound_rel - MENU_PADDING).max(0.0) / f32::from(u)).floor() as usize;
+                let end_index = (((upper_bound_rel - MENU_PADDING).max(0.0) / f32::from(u)).floor()
+                    as usize)
+                    .min(max_index);
                 (start_index, end_index)
             }
             ItemHeight::Static(_) | ItemHeight::Dynamic(_) => {
@@ -845,20 +851,9 @@ impl<'b, Message: Clone + 'static> Menu<'b, Message> {
                                     .children()
                                     .nth(active.saturating_sub(start_index))
                             {
-                                let i = active.saturating_sub(start_index);
-                                let mut rad = styling.menu_border_radius;
-                                let rad_0 = theme.cosmic().radius_0();
-                                if start_index != end_index {
-                                    if 0 == i {
-                                        rad[2] = rad_0[0];
-                                        rad[3] = rad_0[1];
-                                    } else if i == end_index - start_index {
-                                        rad[0] = rad_0[2];
-                                        rad[1] = rad_0[3];
-                                    } else {
-                                        rad = rad_0;
-                                    }
-                                }
+                                // Items stand off the menu edge by MENU_PADDING, so every
+                                // corner of the highlight keeps the menu radius
+                                let rad = styling.menu_border_radius;
                                 let path_quad = renderer::Quad {
                                     bounds: active_layout
                                         .bounds()
@@ -1570,7 +1565,9 @@ where
 
         let active_menu: &Vec<MenuTree<Message>> = roots;
         let new_index = match menu.item_height {
-            ItemHeight::Uniform(u) => (height_diff / f32::from(u)).floor() as usize,
+            ItemHeight::Uniform(u) => (((height_diff - MENU_PADDING).max(0.0) / f32::from(u))
+                .floor() as usize)
+                .min(active_menu.len() - 1),
             ItemHeight::Static(_) | ItemHeight::Dynamic(_) => {
                 let max_index = active_menu.len() - 1;
                 search_bound(
@@ -1611,9 +1608,13 @@ where
         if !item.children.is_empty() && old_index.is_none_or(|i| i != new_index) {
             let item_position = Point::new(
                 0.0,
-                last_menu_bounds.child_positions[new_index] + last_menu_state.scroll_offset,
+                last_menu_bounds.child_positions[new_index] + last_menu_state.scroll_offset
+                    - MENU_PADDING,
             );
-            let item_size = last_menu_bounds.child_sizes[new_index];
+            let item_size = Size::new(
+                last_children_bounds.width,
+                last_menu_bounds.child_sizes[new_index].height,
+            );
 
             // overlay space item bounds
             let item_bounds = Rectangle::new(item_position, item_size)
@@ -1751,10 +1752,12 @@ fn get_children_layout<Message>(
     item_height: ItemHeight,
     tree: &mut [Tree],
 ) -> (Size, Vec<f32>, Vec<Size>) {
-    let width = match item_width {
+    // The item width is the menu width; items sit inside the menu padding
+    let menu_width = match item_width {
         ItemWidth::Uniform(u) => f32::from(u),
         ItemWidth::Static(s) => f32::from(menu_tree.width.unwrap_or(s)),
     };
+    let width = (menu_width - 2.0 * MENU_PADDING).max(0.0);
 
     let child_sizes: Vec<Size> = match item_height {
         ItemHeight::Uniform(u) => {
@@ -1803,16 +1806,20 @@ fn get_children_layout<Message>(
     };
 
     let max_index = menu_tree.children.len().saturating_sub(1);
-    let child_positions: Vec<f32> = std::iter::once(0.0)
-        .chain(child_sizes[0..max_index].iter().scan(0.0, |acc, x| {
-            *acc += x.height;
-            Some(*acc)
-        }))
+    let child_positions: Vec<f32> = std::iter::once(MENU_PADDING)
+        .chain(
+            child_sizes[0..max_index]
+                .iter()
+                .scan(MENU_PADDING, |acc, x| {
+                    *acc += x.height;
+                    Some(*acc)
+                }),
+        )
         .collect();
 
-    let height = child_sizes.iter().fold(0.0, |acc, x| acc + x.height);
+    let height = child_sizes.iter().fold(0.0, |acc, x| acc + x.height) + 2.0 * MENU_PADDING;
 
-    (Size::new(width, height), child_positions, child_sizes)
+    (Size::new(menu_width, height), child_positions, child_sizes)
 }
 
 /// Close the innermost open menu level

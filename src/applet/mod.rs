@@ -422,6 +422,55 @@ impl Context {
         )
     }
 
+    /// Popup container for a context menu of a panel button or a tray icon.
+    /// Same surface as `widget::menu`: component background, 1 px border,
+    /// `radius_s` and the menu padding; width follows the content.
+    pub fn menu_popup_container<'a, Message: 'static>(
+        &self,
+        content: impl Into<Element<'a, Message>>,
+    ) -> Autosize<'a, Message, crate::Theme, Renderer> {
+        let (vertical_align, horizontal_align) = match self.anchor {
+            PanelAnchor::Left => (Vertical::Center, Horizontal::Left),
+            PanelAnchor::Right => (Vertical::Center, Horizontal::Right),
+            PanelAnchor::Top => (Vertical::Top, Horizontal::Center),
+            PanelAnchor::Bottom => (Vertical::Bottom, Horizontal::Center),
+        };
+
+        autosize(
+            Container::<Message, _, Renderer>::new(
+                Container::<Message, _, Renderer>::new(content)
+                    .padding(1.0 + widget::menu::PADDING)
+                    .style(|theme| {
+                        let cosmic = theme.cosmic();
+                        let component = &cosmic.background(theme.transparent).component;
+                        iced_widget::container::Style {
+                            text_color: Some(component.on.into()),
+                            background: Some(Color::from(component.base).into()),
+                            border: iced::Border {
+                                radius: cosmic.corner_radii.radius_s.into(),
+                                width: 1.0,
+                                color: component.divider.into(),
+                            },
+                            shadow: Shadow::default(),
+                            icon_color: Some(component.on.into()),
+                            snap: true,
+                        }
+                    }),
+            )
+            .height(Length::Shrink)
+            .align_x(horizontal_align)
+            .align_y(vertical_align),
+            AUTOSIZE_ID.clone(),
+        )
+        .limits(
+            Limits::NONE
+                .min_height(1.)
+                .min_width(200.0)
+                .max_width(360.0)
+                .max_height(1000.0),
+        )
+    }
+
     #[must_use]
     #[allow(clippy::cast_possible_wrap)]
     pub fn get_popup_settings(
@@ -632,6 +681,18 @@ pub fn menu_button<'a, Message: Clone + 'a>(
     crate::widget::button::custom(content)
         .class(Button::AppletMenu)
         .padding(menu_control_padding())
+        .width(Length::Fill)
+}
+
+/// Item of a panel context menu, with the metrics of `widget::menu`.
+/// Content starts with `widget::menu::icon_column` to keep labels in one column.
+pub fn menu_item<'a, Message: Clone + 'a>(
+    content: impl Into<Element<'a, Message>>,
+) -> crate::widget::Button<'a, Message> {
+    crate::widget::button::custom(content)
+        .class(Button::MenuItem)
+        .padding([0, widget::menu::ITEM_PADDING])
+        .height(Length::Fixed(widget::menu::ITEM_HEIGHT))
         .width(Length::Fill)
 }
 

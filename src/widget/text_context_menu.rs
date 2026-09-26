@@ -258,7 +258,7 @@ where
             click_inside: true,
         },
         item_width: ItemWidth::Uniform(240),
-        item_height: ItemHeight::Dynamic(40),
+        item_height: ItemHeight::Dynamic(20),
         bar_bounds: bounds,
         main_offset: -(bounds.height as i32),
         cross_offset: 0,
@@ -296,7 +296,7 @@ fn build_menu_roots(
 ) -> Vec<menu::Tree<TextCtxAction>> {
     let item = |label: String, action: TextCtxAction, enabled: bool| {
         menu::Tree::from(crate::Element::from(
-            menu::menu_button(vec![widget::text(label).into()])
+            menu::menu_button(vec![menu::icon_column(None), widget::text(label).into()])
                 .on_press_maybe(enabled.then_some(action)),
         ))
     };
@@ -550,7 +550,7 @@ pub(crate) fn create_text_context_popup(
             click_inside: true,
         },
         item_width: ItemWidth::Uniform(240),
-        item_height: ItemHeight::Dynamic(40),
+        item_height: ItemHeight::Dynamic(20),
         bar_bounds: bounds,
         main_offset: -(bounds.height as i32),
         cross_offset: 0,

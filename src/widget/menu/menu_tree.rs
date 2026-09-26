@@ -137,6 +137,19 @@ impl<Message: Clone + 'static> From<crate::Element<'static, Message>> for MenuTr
     }
 }
 
+/// Height of a menu item, as in the Windows 11 menu at 100 %
+pub const ITEM_HEIGHT: f32 = 20.0;
+/// Horizontal padding inside a menu item
+pub const ITEM_PADDING: u16 = 4;
+/// Side of the leading column that holds an icon or a check mark
+pub const ICON_SIZE: u16 = 16;
+/// Gap between the leading column and the label
+pub const ICON_GAP: f32 = 5.0;
+/// Height of a separator block: 3 + 1 px line + 3
+pub const DIVIDER_HEIGHT: f32 = 7.0;
+/// Size of the submenu arrow
+pub const ARROW_SIZE: u16 = 12;
+
 pub fn menu_button<'a, Message>(
     children: Vec<crate::Element<'a, Message>>,
 ) -> crate::widget::Button<'a, Message>
@@ -149,10 +162,62 @@ where
             .height(Length::Fill)
             .width(Length::Fill),
     )
-    .height(Length::Fixed(36.0))
-    .padding([4, 16])
+    .height(Length::Fixed(ITEM_HEIGHT))
+    .padding([0, ITEM_PADDING])
     .width(Length::Fill)
     .class(theme::Button::MenuItem)
+}
+
+/// Leading column of a menu item. Every item gets it, with or without an icon,
+/// so labels line up in one column as in the Windows menu.
+pub fn icon_column<'a, Message: 'a>(
+    content: Option<crate::Element<'a, Message>>,
+) -> crate::Element<'a, Message> {
+    let slot: crate::Element<'a, Message> = match content {
+        Some(content) => widget::container(content)
+            .width(Length::Fixed(f32::from(ICON_SIZE)))
+            .center_x(Length::Fixed(f32::from(ICON_SIZE)))
+            .into(),
+        None => widget::space::horizontal()
+            .width(Length::Fixed(f32::from(ICON_SIZE)))
+            .into(),
+    };
+    widget::Row::with_capacity(2)
+        .push(slot)
+        .push(widget::space::horizontal().width(Length::Fixed(ICON_GAP)))
+        .align_y(Alignment::Center)
+        .into()
+}
+
+/// Submenu arrow at the trailing edge of a menu item
+pub fn submenu_arrow<'a, Message: 'a>() -> crate::Element<'a, Message> {
+    widget::icon::from_name("pan-end-symbolic")
+        .size(ARROW_SIZE)
+        .icon()
+        .into()
+}
+
+/// Menu separator: a 1 px line in the menu border color, full inner width
+pub fn divider<'a, Message: 'a>() -> crate::Element<'a, Message> {
+    widget::container(
+        iced_widget::rule::horizontal(1).class(theme::Rule::custom(|theme| {
+            iced_widget::rule::Style {
+                color: theme
+                    .cosmic()
+                    .background(theme.transparent)
+                    .component
+                    .divider
+                    .into(),
+                radius: 0.0.into(),
+                fill_mode: iced_widget::rule::FillMode::Full,
+                snap: true,
+            }
+        })),
+    )
+    .padding([3, 0])
+    .height(Length::Fixed(DIVIDER_HEIGHT))
+    .width(Length::Fill)
+    .into()
 }
 
 #[derive(Clone)]
@@ -295,7 +360,6 @@ fn entry_tree<
         enabled,
         action,
     } = entry;
-    let spacing = crate::theme::spacing();
     // Several bindings may map to one action
     // choose based on these rules:
     // - the fewest modifiers win (Delete vs Ctrl+D)
@@ -314,43 +378,27 @@ fn entry_tree<
         .min_by(|a, b| rank(a).cmp(&rank(b)).then_with(|| a.cmp(b)))
         .map_or_else(String::new, ToString::to_string);
 
-    let mut items: Vec<crate::Element<'static, Message>> = Vec::with_capacity(7);
+    let mut items: Vec<crate::Element<'static, Message>> = Vec::with_capacity(4);
 
-    if let Some(checked) = checked {
-        items.push(if checked {
+    // A check mark takes the icon's place, as in the Windows menu
+    let lead: Option<crate::Element<'static, Message>> = if checked == Some(true) {
+        Some(
             widget::icon::from_name("object-select-symbolic")
-                .size(16)
+                .size(ICON_SIZE)
                 .icon()
                 .class(theme::Svg::Custom(Rc::new(|theme| {
                     iced_widget::svg::Style {
                         color: Some(theme.cosmic().accent_text_color().into()),
                     }
                 })))
-                .width(Length::Fixed(16.0))
-                .into()
-        } else {
-            widget::space::horizontal()
-                .width(Length::Fixed(16.0))
-                .into()
-        });
-        items.push(widget::space::horizontal().width(spacing.space_xxs).into());
-    }
-
-    match icon {
-        IconSlot::Icon(icon) => {
-            items.push(widget::icon::icon(icon).size(14).into());
-            items.push(widget::space::horizontal().width(spacing.space_xxs).into());
-        }
-        IconSlot::Reserved => {
-            items.push(
-                widget::space::horizontal()
-                    .width(Length::Fixed(14.0))
-                    .into(),
-            );
-            items.push(widget::space::horizontal().width(spacing.space_xxs).into());
-        }
-        IconSlot::None => {}
-    }
+                .into(),
+        )
+    } else if let IconSlot::Icon(icon) = icon {
+        Some(widget::icon::icon(icon).size(ICON_SIZE).into())
+    } else {
+        None
+    };
+    items.push(icon_column(lead));
 
     let ellipsize =
         iced_core::text::Ellipsize::Middle(iced_core::text::EllipsizeHeightLimit::Lines(1));
@@ -432,16 +480,14 @@ pub fn menu_items<
                     trees.push(MenuTree::<Message>::with_children(
                         RcElementWrapper::new(crate::Element::from(
                             menu_button::<'static, _>(vec![
+                                icon_column(None),
                                 widget::text(l.clone())
                                     .ellipsize(iced_core::text::Ellipsize::Middle(
                                         iced_core::text::EllipsizeHeightLimit::Lines(1),
                                     ))
                                     .into(),
                                 widget::space::horizontal().into(),
-                                widget::icon::from_name("pan-end-symbolic")
-                                    .size(16)
-                                    .icon()
-                                    .into(),
+                                submenu_arrow(),
                             ])
                             .class(
                                 // Menu folders have no on_press so they take on the disabled style by default
@@ -460,9 +506,7 @@ pub fn menu_items<
                 MenuItem::Divider => {
                     // A divider at either end separates nothing
                     if i != 0 && i != size - 1 {
-                        trees.push(MenuTree::<Message>::from(Element::from(
-                            widget::divider::horizontal::light(),
-                        )));
+                        trees.push(MenuTree::<Message>::from(divider()));
                     }
                 }
             }
