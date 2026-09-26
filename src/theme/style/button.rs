@@ -207,7 +207,9 @@ pub fn appearance(
             appearance.background = Some(Background::Color(cosmic.text_button.hover.into()));
             appearance.icon_color = Some(cosmic.accent_text_color().into());
             appearance.text_color = Some(cosmic.accent_text_color().into());
-            corner_radii = &cosmic.corner_radii.radius_xs;
+            // WMDE: square like `Link` - this fill is a selection, and selections are square
+            // (.doc/appearance/05-rules.md).
+            corner_radii = &cosmic.corner_radii.radius_0;
         }
 
         Button::Custom { .. } => (),
