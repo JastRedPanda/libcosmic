@@ -12,7 +12,7 @@ translators = Перекладачі
 documenters = Документатори
 february = Лютий { $year }
 november = Листопад { $year }
-friday = П'ятниця
+friday = Пʼятниця
 tuesday = Вівторок
 may = Травень { $year }
 wednesday = Середа
@@ -34,7 +34,7 @@ tue = Вт
 wed = Ср
 thu = Чт
 fri = Пт
-sat = Cб
+sat = Сб
 sun = Нд
 
 # Text context menu
