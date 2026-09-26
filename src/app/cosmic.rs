@@ -153,7 +153,7 @@ where
     #[allow(clippy::too_many_lines)]
     pub fn surface_update(
         &mut self,
-        _surface_message: crate::surface::Action,
+        _surface_message: crate::surface::Action<T::Message>,
     ) -> iced::Task<crate::Action<T::Message>> {
         #[cfg(feature = "surface-message")]
         match _surface_message {
@@ -194,18 +194,7 @@ where
                 };
                 let settings = settings();
 
-                if let Some(view) = view.and_then(|view| {
-                    match std::sync::Arc::try_unwrap(view).ok()?.downcast::<Box<
-                            dyn Fn() -> Element<'static, crate::Action<T::Message>> + Send + Sync,
-                        >>() {
-                            Ok(v) => Some(v),
-                            Err(err) => {
-                                tracing::error!("Invalid view for subsurface view: {err:?}");
-
-                                None
-                            }
-                        }
-                }) {
+                if let Some(view) = view {
                     self.get_subsurface(settings, Some(Box::new(move |_| view())))
                 } else {
                     self.get_subsurface(settings, None)
@@ -301,17 +290,7 @@ where
                 let settings = settings();
                 let live_settings = Box::new(move |_: &T| live_settings());
 
-                if let Some(view) = view.and_then(|view| {
-                    match std::sync::Arc::try_unwrap(view).ok()?.downcast::<Box<
-                            dyn Fn() -> Element<'static, crate::Action<T::Message>> + Send + Sync,
-                        >>() {
-                            Ok(v) => Some(v),
-                            Err(err) => {
-                                tracing::error!("Invalid view for subsurface view: {err:?}");
-                                None
-                            }
-                        }
-                }) {
+                if let Some(view) = view {
                     self.get_popup(settings, live_settings, Some(Box::new(move |_| view())))
                 } else {
                     self.get_popup(settings, live_settings, None)
@@ -377,17 +356,7 @@ where
                     return Task::none();
                 };
 
-                if let Some(view) = view.and_then(|view| {
-                    match std::sync::Arc::try_unwrap(view).ok()?.downcast::<Box<
-                            dyn Fn() -> Element<'static, crate::Action<T::Message>> + Send + Sync,
-                        >>() {
-                            Ok(v) => Some(v),
-                            Err(err) => {
-                                tracing::error!("Invalid view for Window: {err:?}");
-                                None
-                            }
-                        }
-                }) {
+                if let Some(view) = view {
                     let settings = settings();
 
                     self.get_window(
@@ -409,9 +378,7 @@ where
             }
 
             crate::surface::Action::Ignore => iced::Task::none(),
-            crate::surface::Action::Task(f) => {
-                f().map(|sm| crate::Action::Cosmic(Action::Surface(sm)))
-            }
+            crate::surface::Action::Task(f) => f().map(crate::Action::Surface),
             #[cfg(wayland_platform)]
             crate::surface::Action::AppLayerShell(settings, live_settings, view) => {
                 let Some(settings) = std::sync::Arc::try_unwrap(settings)
@@ -474,17 +441,7 @@ where
                 let live_settings = live_settings();
                 let live_settings = Box::new(move |_app: &T| live_settings);
 
-                if let Some(view) = view.and_then(|view| {
-                    match std::sync::Arc::try_unwrap(view).ok()?.downcast::<Box<
-                            dyn Fn() -> Element<'static, crate::Action<T::Message>> + Send + Sync,
-                        >>() {
-                            Ok(v) => Some(v),
-                            Err(err) => {
-                                tracing::error!("Invalid view for layer surface: {err:?}");
-                                None
-                            }
-                        }
-                }) {
+                if let Some(view) = view {
                     self.get_layer_shell(settings, live_settings, Some(Box::new(move |_| view())))
                 } else {
                     self.get_layer_shell(settings, live_settings, None)
@@ -493,6 +450,33 @@ where
             #[cfg(wayland_platform)]
             crate::surface::Action::DestroyLayerShell(id) => {
                 iced_winit::commands::layer_surface::destroy_layer_surface(id)
+            }
+            #[cfg(wayland_platform)]
+            crate::surface::Action::Lock(id, output, live_settings, view) => {
+                let Some(live_settings) =
+                    std::sync::Arc::try_unwrap(live_settings)
+                        .ok()
+                        .and_then(|s| {
+                            s.downcast::<Box<dyn Fn() -> LiveSettings + Send + Sync>>()
+                                .ok()
+                        })
+                else {
+                    tracing::error!("Invalid live settings for popup");
+                    return Task::none();
+                };
+
+                let live_settings = live_settings();
+                let live_settings = Box::new(move |_app: &T| live_settings);
+
+                if let Some(view) = view {
+                    self.get_lock(id, output, live_settings, Some(Box::new(move |_| view())))
+                } else {
+                    self.get_lock(id, output, live_settings, None)
+                }
+            }
+            #[cfg(wayland_platform)]
+            crate::surface::Action::DestroyLock(id) => {
+                iced_winit::commands::session_lock::destroy_lock_surface(id)
             }
             crate::surface::Action::SyncLiveSettings(id) => {
                 if let Some((_, id, live_settings, _)) = self.surface_views.get(&id) {
@@ -515,6 +499,7 @@ where
         let mut task = match message {
             crate::Action::App(message) => self.app.update(message),
             crate::Action::Cosmic(message) => self.cosmic_update(message),
+            crate::Action::Surface(action) => self.surface_update(action),
             crate::Action::None => iced::Task::none(),
             #[cfg(feature = "single-instance")]
             crate::Action::DbusActivation(message) => {
@@ -604,9 +589,13 @@ where
                 #[cfg(wayland_platform)]
                 iced::Event::PlatformSpecific(iced::event::PlatformSpecific::Wayland(event)) => {
                     match event {
-                        wayland::Event::Popup(wayland::PopupEvent::Done, _, id)
-                        | wayland::Event::Layer(wayland::LayerEvent::Done, _, id) => {
-                            return Some(Action::SurfaceClosed(id));
+                        wayland::Event::Popup(wayland::PopupEvent::Done, _, popup) => {
+                            if popup == id {
+                                return Some(Action::SurfaceClosed(popup));
+                            }
+                        }
+                        wayland::Event::Layer(wayland::LayerEvent::Done, _, layer) => {
+                            return Some(Action::SurfaceClosed(layer));
                         }
                         #[cfg(feature = "applet")]
                         wayland::Event::Window(
@@ -1226,8 +1215,6 @@ impl<T: Application> Cosmic<T> {
                 }
             }
 
-            Action::Surface(action) => return self.surface_update(action),
-
             Action::SurfaceClosed(id) => {
                 // The application never created the About window, so it is cleaned up
                 // here instead of being reported through `on_close_requested`.
@@ -1593,7 +1580,7 @@ impl<App: Application> Cosmic<App> {
                 view,
             ),
         );
-        Task::batch([live_settings_task, get_subsurface(settings)])
+        live_settings_task.chain(get_subsurface(settings))
     }
 
     #[cfg(wayland_platform)]
@@ -1649,16 +1636,13 @@ impl<App: Application> Cosmic<App> {
                 view,
             ),
         );
-        Task::batch([
-            iced_runtime::task::oneshot(|channel| {
-                iced_runtime::Action::Window(iced_runtime::window::Action::Open(
-                    id, settings, channel,
-                ))
-            })
-            .discard(),
-            // We don't control window creation in the same way
-            live_settings_task,
-        ])
+
+        // We don't control window creation in the same way
+        iced_runtime::task::oneshot(|channel| {
+            iced_runtime::Action::Window(iced_runtime::window::Action::Open(id, settings, channel))
+        })
+        .discard()
+        .chain(live_settings_task)
     }
 
     #[cfg(wayland_platform)]
@@ -1686,7 +1670,35 @@ impl<App: Application> Cosmic<App> {
                 view,
             ),
         );
-        Task::batch([live_settings_task, get_layer_surface(settings)])
+        live_settings_task.chain(get_layer_surface(settings))
+    }
+
+    #[cfg(wayland_platform)]
+    pub fn get_lock(
+        &mut self,
+        id: window::Id,
+        output: cctk::wayland_client::protocol::wl_output::WlOutput,
+        live_settings: Box<dyn for<'a> Fn(&'a App) -> LiveSettings + Send + Sync>,
+        view: Option<
+            Box<dyn for<'a> Fn(&'a App) -> Element<'a, crate::Action<App::Message>> + Send + Sync>,
+        >,
+    ) -> Task<crate::Action<App::Message>> {
+        use iced_winit::SurfaceIdWrapper;
+        use iced_winit::platform_specific::commands::session_lock::get_lock_surface;
+        *self.opened_surfaces.entry(id).or_insert(0) += 1;
+        let live_settings_task =
+            self.apply_live_settings(SurfaceIdWrapper::SessionLock(id), &live_settings(&self.app));
+        self.surface_views.insert(
+            id,
+            (
+                None, // TODO parent for layer shell, platform specific option maybe?
+                SurfaceIdWrapper::SessionLock(id),
+                live_settings,
+                view,
+            ),
+        );
+
+        live_settings_task.chain(get_lock_surface(id, output))
     }
 }
 

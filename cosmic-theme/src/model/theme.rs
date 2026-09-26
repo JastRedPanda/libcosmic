@@ -776,6 +776,7 @@ impl Theme {
     }
 
     /// Get the active theme based on the current theme mode.
+    #[allow(clippy::result_large_err)]
     pub fn get_active() -> Result<Self, (Vec<cosmic_config::Error>, Self)> {
         (|| {
             (if ThemeMode::is_dark(&Config::new(Self::id(), Self::VERSION)?)? {
@@ -788,7 +789,6 @@ impl Theme {
         .and_then(|theme_config| Self::get_entry(&theme_config))
     }
 
-    #[must_use]
     /// Rebuild the current theme with the provided accent
     pub fn with_accent(&self, c: Srgba) -> Self {
         let mut oklcha: Oklcha = c.into_color();
@@ -1117,7 +1117,7 @@ impl ThemeBuilder {
 
         let container_alpha = alpha_map.blurred_alpha(frosted);
         let actual_alpha =
-            if (frosted_windows || frosted_system_interface || frosted_panel || frosted_applets) {
+            if frosted_windows || frosted_system_interface || frosted_panel || frosted_applets {
                 container_alpha
             } else {
                 1.0
@@ -1187,9 +1187,14 @@ impl ThemeBuilder {
             control_steps_array[0]
         };
         component_hovered_overlay.alpha = 0.1;
-
+        let mut background_pressed_overlay = component_hovered_overlay;
+        background_pressed_overlay.alpha = 0.2;
+        #[allow(unused_assignments)]
         let mut component_pressed_overlay = component_hovered_overlay;
-        component_pressed_overlay.alpha = 0.2;
+        #[allow(unused_assignments)]
+        {
+            component_pressed_overlay.alpha = 0.2;
+        }
 
         // Standard button background is neutral 7 with 25% opacity
         let button_bg = control_steps_array[7].with_alpha(0.25);
@@ -1224,7 +1229,7 @@ impl ThemeBuilder {
         );
 
         let primary = {
-            let mut container_bg = if let Some(primary_container_bg_color) = primary_container_bg {
+            let container_bg = if let Some(primary_container_bg_color) = primary_container_bg {
                 primary_container_bg_color
             } else {
                 get_surface_color(bg_index, 5, &step_array, is_dark, &control_steps_array[1])
@@ -1242,7 +1247,7 @@ impl ThemeBuilder {
             };
             component_hovered_overlay.alpha = 0.1;
 
-            component_pressed_overlay = component_hovered_overlay;
+            let mut component_pressed_overlay = component_hovered_overlay;
             component_pressed_overlay.alpha = 0.2;
 
             Container::new(
@@ -1377,7 +1382,7 @@ impl ThemeBuilder {
                     accent,
                     on_bg_component,
                     component_hovered_overlay,
-                    component_pressed_overlay,
+                    background_pressed_overlay,
                     is_high_contrast,
                     control_steps_array[8],
                 ),
@@ -1679,7 +1684,7 @@ impl ThemeBuilder {
 /// but this represents the strength of the blur effect.
 #[allow(missing_docs)]
 #[repr(u8)]
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub enum BlurStrength {
     ExtremelyLow,
     ExtremelyLow2,
@@ -1687,6 +1692,7 @@ pub enum BlurStrength {
     VeryLow2,
     Low,
     Low2,
+    #[default]
     Medium,
     Medium2,
     High,
@@ -1695,12 +1701,6 @@ pub enum BlurStrength {
     VeryHigh2,
     ExtremelyHigh,
     ExtremelyHigh2,
-}
-
-impl Default for BlurStrength {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 impl TryFrom<u8> for BlurStrength {
@@ -1727,6 +1727,7 @@ impl TryFrom<u8> for BlurStrength {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AlphaMap {
     pub extremely_low: f32,
@@ -1745,6 +1746,7 @@ pub struct AlphaMap {
     pub extremely_high_2: f32,
 }
 
+#[allow(missing_docs)]
 impl AlphaMap {
     pub fn blurred_alpha(&self, blur: BlurStrength) -> f32 {
         match blur {
