@@ -108,13 +108,7 @@ impl Error {
     /// Useful for determining if it is appropriate to log as an error.
     #[inline]
     pub fn is_err(&self) -> bool {
-        match self {
-            Self::NoConfigDirectory | Self::NotFound => false,
-            // A missing key file is not an error: the field just uses its default.
-            // (field-based reads surface this as GetKey wrapping an io NotFound.)
-            Self::GetKey(_, io_err) if io_err.kind() == std::io::ErrorKind::NotFound => false,
-            _ => true,
-        }
+        !matches!(self, Self::NoConfigDirectory | Self::NotFound)
     }
 }
 
