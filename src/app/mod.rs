@@ -699,11 +699,17 @@ impl<App: Application> ApplicationExt for App {
             .border_padding
             .unwrap_or(if maximized { 8 } else { 7 });
 
+        let footer = self.footer();
+
         let main_content_padding = if content_container {
             let right_padding = if show_context { 0 } else { border_padding };
             let left_padding = if nav_bar_active { 0 } else { border_padding };
+            // WMDE: the same gap above the window's bottom edge as the nav bar keeps, so the
+            // page does not run into the border while the nav bar beside it stops short. A
+            // footer brings its own.
+            let bottom_padding = if footer.is_some() { 0 } else { border_padding };
 
-            [0, right_padding, 0, left_padding]
+            [0, right_padding, bottom_padding, left_padding]
         } else {
             [0, 0, 0, 0]
         };
@@ -813,7 +819,7 @@ impl<App: Application> ApplicationExt for App {
 
         let content_col = crate::widget::column::with_capacity(2)
             .push(content_row)
-            .push_maybe(self.footer().map(|footer| {
+            .push_maybe(footer.map(|footer| {
                 container(footer.map(crate::Action::App)).padding([
                     0,
                     border_padding,
