@@ -137,8 +137,8 @@ impl<Message: Clone + 'static> From<crate::Element<'static, Message>> for MenuTr
     }
 }
 
-/// Height of a menu item, as in the Windows 11 menu at 100 %
-pub const ITEM_HEIGHT: f32 = 20.0;
+/// Height of a menu item; the highlight fills all of it
+pub const ITEM_HEIGHT: f32 = 28.0;
 /// Horizontal padding inside a menu item; the icon column starts 9 px from the menu edge
 pub const ITEM_PADDING: u16 = 8;
 /// Side of the leading column that holds an icon or a check mark
