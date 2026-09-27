@@ -241,7 +241,8 @@ pub fn appearance(
             appearance.background = Some(Background::Color(background));
             appearance.icon_color = Some(component.on.into());
             appearance.text_color = Some(component.on.into());
-            corner_radii = &cosmic.corner_radii.radius_s;
+            // Menu items are highlighted border to border, square
+            corner_radii = &cosmic.corner_radii.radius_0;
         }
         Button::ListItem(radii) => {
             corner_radii = radii;
@@ -264,7 +265,8 @@ pub fn appearance(
             appearance.background = Some(Background::Color(background));
             appearance.icon_color = icon;
             appearance.text_color = text;
-            corner_radii = &cosmic.corner_radii.radius_s;
+            // Menu items are highlighted border to border, square
+            corner_radii = &cosmic.corner_radii.radius_0;
         }
         Button::MenuRoot => {
             appearance.background = None;

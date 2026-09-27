@@ -226,8 +226,9 @@ impl Aod {
 /// When the bounds of a menu exceed the viewport,
 /// only items inside the viewport will be displayed,
 /// when scrolling happens, this should be updated
-/// Inner padding between the menu border and its items, as in the Windows 11 menu
-pub const MENU_PADDING: f32 = 4.0;
+/// Inner padding between the menu border and its items. Zero: the highlight of an
+/// item runs from border to border.
+pub const MENU_PADDING: f32 = 0.0;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct MenuSlice {
@@ -851,9 +852,8 @@ impl<'b, Message: Clone + 'static> Menu<'b, Message> {
                                     .children()
                                     .nth(active.saturating_sub(start_index))
                             {
-                                // Items stand off the menu edge by MENU_PADDING, so every
-                                // corner of the highlight keeps the menu radius
-                                let rad = styling.menu_border_radius;
+                                // The highlight spans the full item, square like the hover
+                                let rad = theme.cosmic().radius_0();
                                 let path_quad = renderer::Quad {
                                     bounds: active_layout
                                         .bounds()
