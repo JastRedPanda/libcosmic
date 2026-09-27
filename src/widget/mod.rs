@@ -226,7 +226,9 @@ pub use grid::{Grid, grid};
 
 mod header_bar;
 #[doc(inline)]
-pub use header_bar::{HeaderBar, header_bar};
+pub use header_bar::{
+    HeaderBar, header_bar, strip_class as header_strip_class, strip_color as header_strip_color,
+};
 
 pub mod icon;
 #[doc(inline)]

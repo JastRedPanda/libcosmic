@@ -9,6 +9,27 @@ use iced_core::widget::tree;
 use iced_core::{Length, Size, Vector, Widget, layout, text};
 use std::borrow::Cow;
 
+/// WMDE: the fill of the strip under a title bar, where menu bars and search fields live.
+///
+/// Also what the active tab of a tabs title bar is colored with, so the tab reads as part
+/// of the strip below it. The fill is snapped: an unsnapped strip ends on a fractional row,
+/// and the sliver between it and a snapped neighbour belongs to neither - with nothing
+/// opaque behind the body, that sliver shows the desktop as a hairline.
+#[must_use]
+pub fn strip_class() -> theme::Container<'static> {
+    theme::Container::custom(|theme| widget::container::Style {
+        background: Some(iced::Background::Color(strip_color(theme))),
+        snap: true,
+        ..Default::default()
+    })
+}
+
+/// WMDE: the color [`strip_class`] fills with.
+#[must_use]
+pub fn strip_color(theme: &crate::Theme) -> iced::Color {
+    theme.cosmic().primary(theme.transparent).base.into()
+}
+
 #[must_use]
 pub fn header_bar<'a, Message>() -> HeaderBar<'a, Message> {
     HeaderBar {

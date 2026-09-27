@@ -13,8 +13,9 @@ pub(crate) mod about_window;
 use cosmic_config::CosmicConfigEntry;
 #[cfg(feature = "winit")]
 pub mod window_preset;
+pub use crate::core::TitleBar;
 #[cfg(feature = "winit")]
-pub use window_preset::{Chrome, WindowPreset};
+pub use window_preset::{Chrome, WindowPreset, frame_class};
 pub mod context_drawer;
 pub use context_drawer::{ContextDrawer, context_drawer};
 use iced::application::BootFn;
@@ -379,17 +380,34 @@ where
     }
 
     /// Attaches elements to the start section of the header.
+    ///
+    /// WMDE: drawn only by the [`TitleBar::Tabs`] title bar, where it holds the tabs.
     fn header_start(&self) -> Vec<Element<'_, Self::Message>> {
         Vec::new()
     }
 
     /// Attaches elements to the center of the header.
+    ///
+    /// WMDE: never drawn. No title bar variant has room for application elements in the
+    /// center; kept so upstream code compiles.
     fn header_center(&self) -> Vec<Element<'_, Self::Message>> {
         Vec::new()
     }
 
     /// Attaches elements to the end section of the header.
+    ///
+    /// WMDE: never drawn, see [`Application::header_center`].
     fn header_end(&self) -> Vec<Element<'_, Self::Message>> {
+        Vec::new()
+    }
+
+    /// WMDE: elements for the strip under the title bar - a menu bar, a search field.
+    ///
+    /// The title bar itself carries only the title and the window buttons, so whatever an
+    /// application used to pack into it goes here. Drawn under the [`TitleBar::Normal`] and
+    /// [`TitleBar::Dialog`] title bars, after the nav bar toggle; the strip is left out when
+    /// both are absent.
+    fn header_strip(&self) -> Vec<Element<'_, Self::Message>> {
         Vec::new()
     }
 
@@ -823,53 +841,68 @@ impl<App: Application> ApplicationExt for App {
                 .map(|x| if x < 4.0 { x } else { x + 4.0 })
         };
 
-        let view_column = crate::widget::column::with_capacity(2)
-            .push_maybe(if core.window.show_headerbar {
-                Some({
-                    let mut header = crate::widget::header_bar()
-                        .focused(focused)
-                        .maximized(maximized)
-                        .sharp_corners(sharp_corners)
-                        .title(&core.window.header_title)
-                        .on_drag(crate::Action::Cosmic(Action::Drag))
-                        .on_right_click(crate::Action::Cosmic(Action::ShowWindowMenu))
-                        .on_double_click(crate::Action::Cosmic(Action::Maximize));
-
-                    if self.nav_model().is_some() {
-                        let toggle = crate::widget::nav_bar_toggle()
+        // WMDE: the strip under the title bar - the nav bar toggle, then whatever the
+        // application packs there. The tabs title bar has none: its tabs are its strip.
+        let strip = (core.window.show_headerbar && core.window.title_bar != TitleBar::Tabs)
+            .then(|| {
+                let mut elements: Vec<Element<'_, crate::Action<Self::Message>>> = Vec::new();
+                if self.nav_model().is_some() {
+                    elements.push(
+                        crate::widget::nav_bar_toggle()
                             .active(core.nav_bar_active())
                             .selected(focused)
                             .on_toggle(if is_condensed {
                                 crate::Action::Cosmic(Action::ToggleNavBarCondensed)
                             } else {
                                 crate::Action::Cosmic(Action::ToggleNavBar)
-                            });
+                            })
+                            .into(),
+                    );
+                }
+                elements.extend(
+                    self.header_strip()
+                        .into_iter()
+                        .map(|element| element.map(crate::Action::App)),
+                );
+                elements
+            })
+            .filter(|elements| !elements.is_empty())
+            .map(|elements| {
+                crate::widget::row::with_children(elements)
+                    .spacing(crate::theme::spacing().space_xxs)
+                    .align_y(iced::Alignment::Center)
+                    .apply(container)
+                    .width(Length::Fill)
+                    .class(crate::widget::header_strip_class())
+            });
 
-                        header = header.start(toggle);
+        let view_column = crate::widget::column::with_capacity(2)
+            .push_maybe(if core.window.show_headerbar {
+                Some({
+                    let title_bar = core.window.title_bar;
+                    let mut header = crate::widget::header_bar()
+                        .focused(focused)
+                        .maximized(maximized)
+                        .sharp_corners(sharp_corners)
+                        .on_drag(crate::Action::Cosmic(Action::Drag))
+                        .on_right_click(crate::Action::Cosmic(Action::ShowWindowMenu))
+                        .on_close(crate::Action::Cosmic(Action::Close));
+
+                    // WMDE: the variant alone decides the buttons; `show_*` and the global
+                    // show_minimize / show_maximize settings are not consulted.
+                    if title_bar != TitleBar::Dialog {
+                        header = header
+                            .on_double_click(crate::Action::Cosmic(Action::Maximize))
+                            .on_maximize(crate::Action::Cosmic(Action::Maximize))
+                            .on_minimize(crate::Action::Cosmic(Action::Minimize));
                     }
 
-                    if core.window.show_close {
-                        header = header.on_close(crate::Action::Cosmic(Action::Close));
-                    }
-
-                    if core.window.show_maximize && crate::config::show_maximize() {
-                        header = header.on_maximize(crate::Action::Cosmic(Action::Maximize));
-                    }
-
-                    if core.window.show_minimize && crate::config::show_minimize() {
-                        header = header.on_minimize(crate::Action::Cosmic(Action::Minimize));
-                    }
-
-                    for element in self.header_start() {
-                        header = header.start(element.map(crate::Action::App));
-                    }
-
-                    for element in self.header_center() {
-                        header = header.center(element.map(crate::Action::App));
-                    }
-
-                    for element in self.header_end() {
-                        header = header.end(element.map(crate::Action::App));
+                    if title_bar == TitleBar::Tabs {
+                        for element in self.header_start() {
+                            header = header.start(element.map(crate::Action::App));
+                        }
+                    } else {
+                        header = header.title(&core.window.header_title);
                     }
 
                     if content_container {
@@ -903,6 +936,7 @@ impl<App: Application> ApplicationExt for App {
             } else {
                 None
             })
+            .push_maybe(strip)
             // The content element contains every element beneath the header.
             .push(content)
             .apply(container)

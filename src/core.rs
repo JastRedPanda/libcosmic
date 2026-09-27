@@ -22,12 +22,31 @@ pub struct NavBar {
     toggled_condensed: bool,
 }
 
+/// WMDE: the only three title bars a window may carry.
+///
+/// The variant decides the whole header: what sits on its left, whether it shows the
+/// title, and which window buttons it has. Applications pick a variant, not buttons.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TitleBar {
+    /// The application's tabs on the left, no title; minimize, maximize and close.
+    Tabs,
+    /// A centered title and a close button.
+    Dialog,
+    /// A centered title; minimize, maximize and close.
+    #[default]
+    Normal,
+}
+
 /// COSMIC-specific settings for windows.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone)]
 pub struct Window {
     /// Label to display as header bar title.
     pub header_title: String,
+    /// WMDE: which of the three title bars the main window carries. It alone decides the
+    /// window buttons: `show_close`, `show_maximize` and `show_minimize` are kept for
+    /// upstream code but no longer read.
+    pub title_bar: TitleBar,
     pub use_template: bool,
     pub content_container: bool,
     pub context_is_overlay: bool,
@@ -162,6 +181,7 @@ impl Default for Core {
                 .unwrap_or_default(),
             window: Window {
                 header_title: String::new(),
+                title_bar: TitleBar::default(),
                 use_template: true,
                 content_container: true,
                 context_is_overlay: true,

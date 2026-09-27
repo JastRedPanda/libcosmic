@@ -57,11 +57,11 @@ pub(crate) fn view<M: Clone + 'static>(core: &Core) -> Element<'_, crate::Action
     .apply(crate::widget::scrollable)
     .height(Length::Fill);
 
-    // Deliberately no maximize: a dialog preset draws none, and the window has one size.
+    // The dialog title bar: the window has one size, so nothing to minimize or maximize.
     PRESET.view(
         core,
         id,
-        Chrome::new(
+        Chrome::dialog(
             core.title.get(&id).map_or("", String::as_str),
             crate::Action::Cosmic(super::Action::AboutClose),
             crate::Action::Cosmic(super::Action::AboutDrag),

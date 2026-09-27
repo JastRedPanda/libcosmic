@@ -17,7 +17,7 @@
 //! preset.view(
 //!     self.core(),
 //!     id,
-//!     Chrome::new(fl!("preview"), Message::WindowClose(id), Message::WindowDrag(id)),
+//!     Chrome::dialog(fl!("preview"), Message::WindowClose(id), Message::WindowDrag(id)),
 //!     content,
 //! )
 //! ```
@@ -115,8 +115,8 @@ impl WindowPreset {
     /// Draws `content` inside the standard window frame for this shape: a header bar on
     /// top, and the same 1px border and corner radius the main window template uses.
     ///
-    /// A dialog gets a title and a close button. A utility window also gets maximize, if
-    /// [`Chrome::on_maximize`] supplies a message for it.
+    /// The header is the one the [`Chrome`] asks for, not one derived from the shape: a
+    /// resizable window may still carry the dialog title bar.
     pub fn view<'a, Message: Clone + 'static>(
         &self,
         core: &Core,
@@ -124,78 +124,111 @@ impl WindowPreset {
         chrome: Chrome<'a, Message>,
         content: impl Into<Element<'a, Message>>,
     ) -> Element<'a, Message> {
-        let mut header = crate::widget::header_bar()
-            .title(chrome.title)
-            .focused(core.focus_chain().iter().any(|focused| *focused == id))
-            .on_close(chrome.on_close)
-            .on_drag(chrome.on_drag);
-
-        if self.is_resizable() {
-            if let Some(on_maximize) = chrome.on_maximize {
-                header = header
-                    .on_maximize(on_maximize.clone())
-                    .on_double_click(on_maximize);
-            }
-        }
-
-        // The client draws its own frame, so it also draws the border and the rounded
-        // corners the compositor would otherwise have drawn around it.
-        let window_corner_radius = crate::theme::active()
-            .cosmic()
-            .radius_s()
-            .map(|x| if x < 4.0 { x } else { x + 4.0 });
-
         crate::widget::column::with_capacity(2)
-            .push(header)
+            .push(chrome.header(core, id))
             .push(content.into())
             .apply(crate::widget::container)
             .padding(1)
             .width(Length::Fill)
             .height(Length::Fill)
-            .class(crate::theme::Container::custom(move |theme| {
-                crate::widget::container::Style {
-                    background: Some(iced::Background::Color(
-                        theme.cosmic().background(theme.transparent).base.into(),
-                    )),
-                    border: iced::Border {
-                        color: theme.cosmic().bg_divider().into(),
-                        width: 1.0,
-                        radius: window_corner_radius.into(),
-                    },
-                    ..Default::default()
-                }
-            }))
+            .class(frame_class())
             .into()
     }
 }
 
-/// Messages a framed window's header bar emits.
+/// The frame a client-decorated secondary window draws around its header and content: the
+/// window background, and the 1px border and corner radius the compositor would otherwise
+/// have drawn. Pair it with `padding(1)`.
+///
+/// [`WindowPreset::view`] uses it; a window that sizes itself to its content (and so cannot
+/// fill a preset's fixed size) builds the same frame from this and [`Chrome::header`].
+#[must_use]
+pub fn frame_class() -> crate::theme::Container<'static> {
+    let window_corner_radius = crate::theme::active()
+        .cosmic()
+        .radius_s()
+        .map(|x| if x < 4.0 { x } else { x + 4.0 });
+
+    crate::theme::Container::custom(move |theme| crate::widget::container::Style {
+        background: Some(iced::Background::Color(
+            theme.cosmic().background(theme.transparent).base.into(),
+        )),
+        border: iced::Border {
+            color: theme.cosmic().bg_divider().into(),
+            width: 1.0,
+            radius: window_corner_radius.into(),
+        },
+        ..Default::default()
+    })
+}
+
+/// Messages a framed window's header bar emits, and which title bar it is.
+///
+/// A secondary window carries one of two title bars: [`TitleBar::Dialog`] (title and
+/// close) or [`TitleBar::Normal`] (title, minimize, maximize and close). Tabs belong to
+/// main windows only.
 ///
 /// The messages have to come from the application because the toolkit's own chrome
 /// actions are hardwired to the main window: reusing them would drag or close the wrong
-/// window. Handle them with `window::close(id)` and `core.drag(Some(id))`.
+/// window. Handle them with `window::close(id)`, `core.drag(Some(id))`,
+/// `core.minimize(Some(id))` and `core.toggle_maximize(Some(id))`.
+///
+/// [`TitleBar::Dialog`]: crate::core::TitleBar::Dialog
+/// [`TitleBar::Normal`]: crate::core::TitleBar::Normal
 pub struct Chrome<'a, Message> {
     title: Cow<'a, str>,
     on_close: Message,
     on_drag: Message,
-    on_maximize: Option<Message>,
+    /// Minimize and maximize messages; present only on the normal title bar.
+    normal: Option<(Message, Message)>,
 }
 
 impl<'a, Message> Chrome<'a, Message> {
-    /// Chrome for a window titled `title`, closed by `on_close` and moved by `on_drag`.
-    pub fn new(title: impl Into<Cow<'a, str>>, on_close: Message, on_drag: Message) -> Self {
+    /// The dialog title bar: `title` and a close button.
+    pub fn dialog(title: impl Into<Cow<'a, str>>, on_close: Message, on_drag: Message) -> Self {
         Self {
             title: title.into(),
             on_close,
             on_drag,
-            on_maximize: None,
+            normal: None,
         }
     }
 
-    /// Adds a maximize button, which only a resizable preset draws.
-    #[must_use]
-    pub fn on_maximize(mut self, message: Message) -> Self {
-        self.on_maximize = Some(message);
-        self
+    /// The normal title bar: `title`, minimize, maximize and close. A double click on the
+    /// bar sends `on_maximize` too.
+    pub fn normal(
+        title: impl Into<Cow<'a, str>>,
+        on_close: Message,
+        on_drag: Message,
+        on_minimize: Message,
+        on_maximize: Message,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            on_close,
+            on_drag,
+            normal: Some((on_minimize, on_maximize)),
+        }
+    }
+
+    /// The title bar of window `id`.
+    pub fn header(self, core: &Core, id: window::Id) -> Element<'a, Message>
+    where
+        Message: Clone + 'static,
+    {
+        let mut header = crate::widget::header_bar()
+            .title(self.title)
+            .focused(core.focus_chain().contains(&id))
+            .on_close(self.on_close)
+            .on_drag(self.on_drag);
+
+        if let Some((on_minimize, on_maximize)) = self.normal {
+            header = header
+                .on_minimize(on_minimize)
+                .on_maximize(on_maximize.clone())
+                .on_double_click(on_maximize);
+        }
+
+        header.into()
     }
 }
