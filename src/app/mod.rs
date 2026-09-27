@@ -902,7 +902,17 @@ impl<App: Application> ApplicationExt for App {
                             header = header.start(element.map(crate::Action::App));
                         }
                     } else {
-                        header = header.title(&core.window.header_title);
+                        // WMDE: every title bar but Tabs shows a title. An application that
+                        // sets no header title gets its window title, the one the taskbar
+                        // shows.
+                        let title = if core.window.header_title.is_empty() {
+                            core.main_window_id()
+                                .and_then(|id| core.title.get(&id))
+                                .map_or("", String::as_str)
+                        } else {
+                            core.window.header_title.as_str()
+                        };
+                        header = header.title(title);
                     }
 
                     if content_container {
