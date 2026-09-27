@@ -689,6 +689,11 @@ pub fn menu_button<'a, Message: Clone + 'a>(
 pub fn menu_item<'a, Message: Clone + 'a>(
     content: impl Into<Element<'a, Message>>,
 ) -> crate::widget::Button<'a, Message> {
+    // Centered in the full item height, otherwise the content sticks to its top
+    let content = crate::widget::container(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_y(Vertical::Center);
     crate::widget::button::custom(content)
         .class(Button::MenuItem)
         .padding([0, widget::menu::ITEM_PADDING])
