@@ -424,7 +424,7 @@ impl Context {
 
     /// Popup container for a context menu of a panel button or a tray icon.
     /// Same surface as `widget::menu`: component background, 1 px border,
-    /// `radius_s` and the menu padding; width follows the content.
+    /// `widget::menu::RADIUS` and the menu padding; width follows the content.
     pub fn menu_popup_container<'a, Message: 'static>(
         &self,
         content: impl Into<Element<'a, Message>>,
@@ -447,7 +447,7 @@ impl Context {
                             text_color: Some(component.on.into()),
                             background: Some(Color::from(component.base).into()),
                             border: iced::Border {
-                                radius: cosmic.corner_radii.radius_s.into(),
+                                radius: widget::menu::RADIUS.into(),
                                 width: 1.0,
                                 color: component.divider.into(),
                             },

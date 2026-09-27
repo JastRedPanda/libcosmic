@@ -149,6 +149,8 @@ pub const ICON_GAP: f32 = 5.0;
 pub const DIVIDER_HEIGHT: f32 = 7.0;
 /// Size of the submenu arrow
 pub const ARROW_SIZE: u16 = 12;
+/// Corner radius of a menu surface
+pub const RADIUS: f32 = 2.0;
 
 pub fn menu_button<'a, Message>(
     children: Vec<crate::Element<'a, Message>>,

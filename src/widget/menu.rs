@@ -72,8 +72,8 @@ mod menu_inner;
 mod menu_tree;
 pub use menu_tree::{
     ARROW_SIZE, DIVIDER_HEIGHT, Entry, ICON_GAP, ICON_SIZE, ITEM_HEIGHT, ITEM_PADDING, IconSlot,
-    MenuItem as Item, MenuTree as Tree, divider, icon_column, menu_button, menu_items as items,
-    menu_root as root, nav_context, submenu_arrow,
+    MenuItem as Item, MenuTree as Tree, RADIUS, divider, icon_column, menu_button,
+    menu_items as items, menu_root as root, nav_context, submenu_arrow,
 };
 
 pub use crate::style::menu_bar::{Appearance, StyleSheet};
