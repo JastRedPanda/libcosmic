@@ -486,6 +486,12 @@ where
         Task::none()
     }
 
+    /// WMDE: called when F11 is pressed and nothing else took it. Maximizes the main window by
+    /// default, as before; an application with a fullscreen mode of its own overrides it.
+    fn on_fullscreen(&mut self) -> Task<Self::Message> {
+        self.core().toggle_maximize(None)
+    }
+
     /// Called when a window is resized.
     fn on_window_resize(&mut self, id: window::Id, width: f32, height: f32) {}
 

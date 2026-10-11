@@ -903,7 +903,7 @@ impl<T: Application> Cosmic<T> {
                 keyboard_nav::Action::Escape => return self.app.on_escape(),
                 keyboard_nav::Action::Search => return self.app.on_search(),
 
-                keyboard_nav::Action::Fullscreen => return self.app.core().toggle_maximize(None),
+                keyboard_nav::Action::Fullscreen => return self.app.on_fullscreen(),
             },
 
             Action::ContextDrawer(show) => {
