@@ -119,6 +119,10 @@ fn window_control_wash(theme: &crate::Theme, alpha: f32) -> Color {
     Color { a: alpha, ..base }
 }
 
+fn menu_item_background(component: &Component, background: Color) -> Option<Background> {
+    (background != Color::from(component.base)).then_some(Background::Color(background))
+}
+
 pub fn appearance(
     theme: &crate::Theme,
     focused: bool,
@@ -238,7 +242,7 @@ pub fn appearance(
             // Menu folders cannot be disabled, ignore customized icon and text color
             let component = &cosmic.background(theme.transparent).component;
             let (background, _, _) = color(component);
-            appearance.background = Some(Background::Color(background));
+            appearance.background = menu_item_background(component, background);
             appearance.icon_color = Some(component.on.into());
             appearance.text_color = Some(component.on.into());
             // Menu items are highlighted border to border, square
@@ -261,8 +265,9 @@ pub fn appearance(
             }
         }
         Button::MenuItem => {
-            let (background, text, icon) = color(&cosmic.background(theme.transparent).component);
-            appearance.background = Some(Background::Color(background));
+            let component = &cosmic.background(theme.transparent).component;
+            let (background, text, icon) = color(component);
+            appearance.background = menu_item_background(component, background);
             appearance.icon_color = icon;
             appearance.text_color = text;
             // Menu items are highlighted border to border, square
