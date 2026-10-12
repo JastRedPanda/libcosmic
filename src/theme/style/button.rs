@@ -85,7 +85,7 @@ fn window_control(
     };
 
     // Ensures visually aligned radii for content and window corners
-    let window_corner_radius = cosmic.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
+    let window_corner_radius = cosmic.radius_s().map(|x| if x < 4.0 { x } else { x + 2.0 });
     // The compositor paints the window frame over the outermost pixel of the window
     // geometry (a 1px IndicatorShader ring in cosmic-comp), so this fill sits one pixel
     // inside it. Concentric insets need the SMALLER radius: reusing the window's own

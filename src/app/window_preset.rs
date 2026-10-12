@@ -147,7 +147,7 @@ pub fn frame_class() -> crate::theme::Container<'static> {
     let window_corner_radius = crate::theme::active()
         .cosmic()
         .radius_s()
-        .map(|x| if x < 4.0 { x } else { x + 4.0 });
+        .map(|x| if x < 4.0 { x } else { x + 2.0 });
 
     crate::theme::Container::custom(move |theme| crate::widget::container::Style {
         background: Some(iced::Background::Color(

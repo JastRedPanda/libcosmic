@@ -850,7 +850,7 @@ impl<App: Application> ApplicationExt for App {
             crate::theme::active()
                 .cosmic()
                 .radius_s()
-                .map(|x| if x < 4.0 { x } else { x + 4.0 })
+                .map(|x| if x < 4.0 { x } else { x + 2.0 })
         };
 
         // WMDE: the strip under the title bar - the nav bar toggle, then whatever the
