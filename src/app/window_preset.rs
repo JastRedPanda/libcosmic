@@ -144,10 +144,7 @@ impl WindowPreset {
 /// fill a preset's fixed size) builds the same frame from this and [`Chrome::header`].
 #[must_use]
 pub fn frame_class() -> crate::theme::Container<'static> {
-    let window_corner_radius = crate::theme::active()
-        .cosmic()
-        .radius_s()
-        .map(|x| if x < 4.0 { x } else { x + 2.0 });
+    let window_corner_radius = crate::theme::active().cosmic().radius_s();
 
     crate::theme::Container::custom(move |theme| crate::widget::container::Style {
         background: Some(iced::Background::Color(

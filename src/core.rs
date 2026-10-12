@@ -669,7 +669,7 @@ impl Core {
                 bottom_left: radius_0[3].round() as u32,
             }
         } else {
-            let radius_s = theme.radius_s().map(|x| if x < 4.0 { x } else { x + 2.0 });
+            let radius_s = theme.radius_s();
             iced_runtime::platform_specific::wayland::CornerRadius {
                 top_left: radius_s[0].round() as u32,
                 top_right: radius_s[1].round() as u32,

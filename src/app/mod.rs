@@ -847,10 +847,7 @@ impl<App: Application> ApplicationExt for App {
         let window_corner_radius = if sharp_corners {
             crate::theme::active().cosmic().radius_0()
         } else {
-            crate::theme::active()
-                .cosmic()
-                .radius_s()
-                .map(|x| if x < 4.0 { x } else { x + 2.0 })
+            crate::theme::active().cosmic().radius_s()
         };
 
         // WMDE: the strip under the title bar - the nav bar toggle, then whatever the
