@@ -287,11 +287,13 @@ impl<'a, Message: Clone + 'static> Widget<Message, crate::Theme, crate::Renderer
 
             // WMDE: the title lines up with the caption glyphs, which sit centred in
             // the top-aligned controls, not with the middle of the whole bar - that
-            // left it 9px below the glyphs. A bar without controls, or a centre taller
-            // than them, keeps the old centring.
+            // left it 9px below the glyphs. It then goes 2px further down, which is
+            // where it reads as level with them (user's call). A bar without controls,
+            // or a centre taller than them, keeps the old centring.
+            const TITLE_DROP: f32 = 2.0;
             let controls_height = child_nodes[2].size().height;
             let node = if node.size().height > 0.0 && node.size().height <= controls_height {
-                let dy = (controls_height - node.size().height) / 2.0;
+                let dy = (controls_height - node.size().height) / 2.0 + TITLE_DROP;
                 node.translate(Vector::new(center_x, dy))
             } else {
                 vcenter(node, center_x)
