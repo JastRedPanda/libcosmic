@@ -285,7 +285,19 @@ impl<'a, Message: Clone + 'static> Widget<Message, crate::Theme, crate::Renderer
             let max_x = (slot_end - natural_width).max(slot_start);
             let center_x = ideal_x.clamp(slot_start, max_x);
 
-            child_nodes.push(vcenter(node, center_x))
+            // WMDE: the title lines up with the caption glyphs, which sit centred in
+            // the top-aligned controls, not with the middle of the whole bar - that
+            // left it 9px below the glyphs. A bar without controls, or a centre taller
+            // than them, keeps the old centring.
+            let controls_height = child_nodes[2].size().height;
+            let node = if node.size().height > 0.0 && node.size().height <= controls_height {
+                let dy = (controls_height - node.size().height) / 2.0;
+                node.translate(Vector::new(center_x, dy))
+            } else {
+                vcenter(node, center_x)
+            };
+
+            child_nodes.push(node)
         }
 
         layout::Node::with_children(Size::new(width, height), child_nodes)
